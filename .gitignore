@@ -3,8 +3,84 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# PyTorch model files
+*.pth
+*.ckpt
+*.pt
+*.safetensors
+
+# Model checkpoints directory
+model_checkpoints/
+checkpoints/
+saved_models/
+weights/
+
+# Training logs
+logs/
+runs/
+tensorboard/
+wandb/
+mlruns/
+
+# Experiment results
+results/
+outputs/
+experiments/*/results/
+*_summary.txt
+*_summary.tex
+
 # C extensions
 *.so
+
+# Dataset directories
+datasets/
+data/
+CLEAR10/
+CLEAR100/
+CLEAR100_30classes/
+Yearbook_Decades/
+GenImage/
+
+# Compressed datasets
+*.tar
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# Dataset splits
+*_split.json
+*_indices.npy
+
+# Confusion matrices and plots
+*.png
+*.jpg
+*.pdf
+!GRASP_method.png
+!execution_time_graphs.png
+!memory_graphs.png
+
+# CSV results
+*_results.csv
+*_metrics.csv
+
+# Summary reports
+comprehensive_experimental_results.txt
+baseline_summary.txt
+*_report.txt
+
+# Keep important figures
+!figures/*.png
+!figures/*.pdf
+
+# Keep example configs
+!configs/*.yaml
+!configs/*.json
+
+# Keep README images
+!*.md
+!docs/*.png
+!docs/*.jpg
 
 # Distribution / packaging
 .Python
