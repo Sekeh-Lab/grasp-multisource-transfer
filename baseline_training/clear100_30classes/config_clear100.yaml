@@ -1,0 +1,59 @@
+# CLEAR-100 Multi-Class Classification Training Configuration (30 classes)
+# Supports 4 models: mobilevit-xxs, mobilevit-xs, resnet-50, efficientnet-b1
+
+# Data Configuration
+data_root: "../../datasets/CLEAR100_30classes"
+year_name: "year_1-2"  # year_1-2, year_3-4, year_5-6, year_7-8, year_9-10
+num_workers: 4
+augmentation: true
+
+# Model Configuration
+# Select one of 4 supported models:
+model_name: "mobilevit-xxs"  # 1.3M params, LR=3e-4, batch=32
+# model_name: "mobilevit-xs"  # 2.3M params, LR=3e-4, batch=32
+# model_name: "resnet-50"  # 25.6M params, LR=1e-4, batch=32
+# model_name: "efficientnet-b1"  # 7.8M params, LR=2e-4, batch=32
+
+dropout_rate: 0.2
+freeze_backbone: false
+
+# Training Configuration
+batch_size: 32
+max_epochs: 15
+learning_rate: 3.0e-4  # Adjust based on model
+weight_decay: 0.01
+warmup_epochs: 2
+gradient_clip_val: 1.0
+accumulate_grad_batches: 1
+
+# Hardware Configuration
+accelerator: "auto"  # "auto", "gpu", "cpu"
+devices: 1
+precision: "16-mixed"  # "32", "16-mixed", or "bf16-mixed"
+
+# Callbacks Configuration
+early_stopping: false
+early_stopping_patience: 10
+
+# Logging Configuration
+log_dir: "./logs"
+checkpoint_dir: "./model_checkpoints"
+experiment_name: null  # Auto-generated if null
+log_every_n_steps: 10
+val_check_interval: 1.0
+plot_every_n_epochs: 5
+
+# Reproducibility
+# Use random seed for experiments (set via CLI if reproducibility needed)
+seed: null  # Will be randomly generated if not specified via CLI
+deterministic: false
+
+# Resume and Test
+resume_from_checkpoint: null
+run_test: true
+
+# Model-specific recommended settings:
+# mobilevit-xxs: batch=32, lr=3e-4, expected acc=75-80% (30-class)
+# mobilevit-xs: batch=32, lr=3e-4, expected acc=77-82% (30-class)
+# resnet-50: batch=32, lr=1e-4, expected acc=76-81% (30-class)
+# efficientnet-b1: batch=32, lr=2e-4, expected acc=77-82% (30-class)
