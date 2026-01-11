@@ -1,29 +1,41 @@
 """
-CLEAR-10 data module: handles loading, preprocessing, and augmentation.
-Supports single years and merged bins. 10 classes total.
+data_module_clear10.py - PyTorch Lightning DataModule for CLEAR-10 Dataset
+
+This module handles all data loading, preprocessing, and augmentation for the CLEAR-10 dataset.
+It supports both single years (year_1, year_2, ...) and merged years (year_1-2, year_3-4, ...).
+
+Each year has 10 classes: baseball, bus, camera, cosplay, dress, hockey, 
+laptop, racing, soccer, sweater
 """
 
 import os
+import shutil
 from pathlib import Path
 from typing import Optional, List
+import re
 
 import pytorch_lightning as pl
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from transformers import AutoImageProcessor
 
 
-# Model name resolution
+# ============================================================================
+# Model Name Resolution for HuggingFace
+# ============================================================================
+
 MODEL_NAME_TO_HF = {
     'mobilevit-xxs': 'apple/mobilevit-xx-small',
     'mobilevit-xs': 'apple/mobilevit-x-small',
-    'resnet-50': 'microsoft/resnet-50',
+    'mobilevit-small': 'apple/mobilevit-small',
     'efficientnet-b1': 'google/efficientnet-b1',
+    'resnet-50': 'microsoft/resnet-50',
     'apple/mobilevit-xx-small': 'apple/mobilevit-xx-small',
     'apple/mobilevit-x-small': 'apple/mobilevit-x-small',
-    'microsoft/resnet-50': 'microsoft/resnet-50',
+    'apple/mobilevit-small': 'apple/mobilevit-small',
     'google/efficientnet-b1': 'google/efficientnet-b1',
+    'microsoft/resnet-50': 'microsoft/resnet-50',
 }
 
 
@@ -37,10 +49,12 @@ def resolve_model_name_for_hf(model_name: str) -> str:
     return model_name
 
 
-# Torchvision models - ONLY 2 supported
+# ============================================================================
+# Torchvision Model Registry
+# ============================================================================
+
 TORCHVISION_MODELS = {
-    'resnet50', 'resnet-50', 
-    'efficientnet', 'efficientnet-b1',
+    'resnet50', 'resnet-50', 'efficientnet'
 }
 
 
@@ -64,7 +78,7 @@ try:
 except ImportError:
     MODEL_REGISTRY = {
         'mobilevit-xxs': {'model_id': 'apple/mobilevit-xx-small'},
-        'mobilevit-xs': {'model_id': 'apple/mobilevit-x-small'},
+        'mobilevit-small': {'model_id': 'apple/mobilevit-small'},
     }
 
 
@@ -126,7 +140,7 @@ class CLEAR10DataModule(pl.LightningDataModule):
         self.is_torchvision = is_torchvision_model(model_name)
         
         if self.is_torchvision:
-            print(f"  Detected torchvision model: Using ImageNet preprocessing")
+            print(f"  Detected torchvision model: Using standard ImageNet preprocessing")
             self._setup_torchvision_preprocessing()
         else:
             print(f"  Detected HuggingFace model: Using AutoImageProcessor")
@@ -145,7 +159,7 @@ class CLEAR10DataModule(pl.LightningDataModule):
         self.processor = None
         
         print(f"  Image size: {self.crop_size}x{self.crop_size}")
-        print(f"  Normalization: ImageNet")
+        print(f"  Normalization: ImageNet (mean={self.image_mean[:2]}..., std={self.image_std[:2]}...)")
     
     def _setup_huggingface_preprocessing(self):
         """Setup preprocessing for HuggingFace models."""
@@ -175,6 +189,7 @@ class CLEAR10DataModule(pl.LightningDataModule):
             print(f"  Using default ImageNet normalization")
         
         print(f"  Image size: {self.crop_size}x{self.crop_size}")
+        print(f"  Normalization: mean={self.image_mean[:2]}..., std={self.image_std[:2]}...")
     
     def get_transforms(self, train: bool = False) -> transforms.Compose:
         """Get image transforms for training or validation/test."""
@@ -284,12 +299,27 @@ class CLEAR10DataModule(pl.LightningDataModule):
         
         if self.train_dataset:
             stats['train_size'] = len(self.train_dataset)
+            train_class_counts = {}
+            for _, label in self.train_dataset.samples:
+                class_name = self.CLASS_NAMES[label]
+                train_class_counts[class_name] = train_class_counts.get(class_name, 0) + 1
+            stats['train_class_distribution'] = train_class_counts
         
         if self.val_dataset:
             stats['val_size'] = len(self.val_dataset)
+            val_class_counts = {}
+            for _, label in self.val_dataset.samples:
+                class_name = self.CLASS_NAMES[label]
+                val_class_counts[class_name] = val_class_counts.get(class_name, 0) + 1
+            stats['val_class_distribution'] = val_class_counts
         
         if self.test_dataset:
             stats['test_size'] = len(self.test_dataset)
+            test_class_counts = {}
+            for _, label in self.test_dataset.samples:
+                class_name = self.CLASS_NAMES[label]
+                test_class_counts[class_name] = test_class_counts.get(class_name, 0) + 1
+            stats['test_class_distribution'] = test_class_counts
         
         return stats
 
@@ -304,6 +334,7 @@ def auto_detect_num_workers(verbose: bool = True) -> int:
     
     cpu_count = os.cpu_count() or 1
     memory = psutil.virtual_memory()
+    total_ram_gb = memory.total / (1024**3)
     available_ram_gb = memory.available / (1024**3)
     
     shm_stats = psutil.disk_usage('/dev/shm')
@@ -311,21 +342,22 @@ def auto_detect_num_workers(verbose: bool = True) -> int:
     
     if verbose:
         print(f"System resources:")
-        print(f"- CPUs: {cpu_count}")
-        print(f"- Available RAM: {available_ram_gb:.1f} GB")
-        print(f"- Shared memory: {shm_size_gb:.2f} GB")
+        print(f"   - CPUs: {cpu_count}")
+        print(f"   - Total RAM: {total_ram_gb:.1f} GB")
+        print(f"   - Available RAM: {available_ram_gb:.1f} GB")
+        print(f"   - Shared memory: {shm_size_gb:.2f} GB")
     
     if shm_size_gb < 1.0:
         if verbose:
-            print(f"Using num_workers=0 (insufficient shared memory)")
+            print(f"   Using num_workers=0 (insufficient shared memory)")
         return 0
     elif available_ram_gb < 4.0:
         if verbose:
-            print(f"Using num_workers=2 (limited RAM)")
+            print(f"   Using num_workers=2 (limited RAM)")
         return 2
     else:
         optimal = min(cpu_count - 2, 8)
         optimal = max(optimal, 2)
         if verbose:
-            print(f"Using num_workers={optimal}")
+            print(f"   Using num_workers={optimal}")
         return optimal
