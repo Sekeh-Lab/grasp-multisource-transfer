@@ -1,0 +1,60 @@
+# Yearbook Decade Classification Training Configuration
+# Binary classification (2 decades per subset)
+# Supports 4 models: mobilevit-xxs, mobilevit-xs, resnet-50, efficientnet-b1
+
+# Data Configuration
+data_root: "../../datasets/Yearbook_Decades"
+subset_name: "before_1950s"  # before_1950s, 1950s_1960s, 1970s_1980s, 1990s_and_later
+num_workers: 4
+augmentation: true
+use_class_weights: false
+
+# Model Configuration
+# Select one of 4 supported models:
+model_name: "mobilevit-xxs"  # 1.3M params, LR=3e-4, batch=32
+# model_name: "mobilevit-xs"  # 2.3M params, LR=3e-4, batch=32
+# model_name: "resnet-50"  # 25.6M params, LR=1e-4, batch=32
+# model_name: "efficientnet-b1"  # 7.8M params, LR=2e-4, batch=32
+
+dropout_rate: 0.2
+freeze_backbone: false
+
+# Training Configuration
+batch_size: 32
+max_epochs: 15
+learning_rate: 3.0e-4  # Adjust based on model
+weight_decay: 0.01
+warmup_epochs: 2
+gradient_clip_val: 1.0
+accumulate_grad_batches: 1
+
+# Hardware Configuration
+accelerator: "auto"  # "auto", "gpu", "cpu"
+devices: 1
+precision: "32"  # "32", "16-mixed", or "bf16-mixed"
+
+# Callbacks Configuration
+early_stopping: true
+early_stopping_patience: 7
+
+# Logging Configuration
+log_dir: "./logs"
+checkpoint_dir: "./model_checkpoints"
+experiment_name: null  # Auto-generated if null
+log_every_n_steps: 10
+val_check_interval: 1.0
+
+# Reproducibility
+# Use random seed for experiments (set via CLI if reproducibility needed)
+seed: null  # Will be randomly generated if not specified via CLI
+deterministic: false
+
+# Resume and Test
+resume_from_checkpoint: null
+run_test: true
+
+# Model-specific recommended settings:
+# mobilevit-xxs: batch=32, lr=3e-4 (fastest, 1.3M params)
+# mobilevit-xs: batch=32, lr=3e-4 (2.3M params)
+# resnet-50: batch=32, lr=1e-4 (classic CNN, 25.6M params)
+# efficientnet-b1: batch=32, lr=2e-4 (balanced, 7.8M params)
