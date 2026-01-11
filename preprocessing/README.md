@@ -8,7 +8,7 @@ Three preprocessing scripts for the datasets used in this paper:
 
 - `clear10_preprocessing.py` - CLEAR-10 (10 classes, 5 two-year bins)
 - `clear100_preprocessing.py` - CLEAR-100 (30 selected classes, 5 two-year bins)  
-- `yearbook_preprocessing.py` - Yearbook portraits (binary classification, 4 periods)
+- `yearbook_preprocessing.py` - Yearbook portraits (binary decade classification, 4 periods)
 
 All scripts use fixed random seed (42) for reproducible splits and require only Python standard library.
 
@@ -133,6 +133,11 @@ The script organizes images into 4 temporal periods based on year extracted from
 - `1970s_1980s` (1970-1989)
 - `1990s_and_later` (1990-2013)
 
+**Binary decade classification** within each temporal period. The script extracts the year from each filename and assigns it to:
+
+1. A **period** (4 total spanning 108 years)
+2. A **decade class** within that period (binary: 0 or 1)
+
 Update these lines in `yearbook_preprocessing.py`:
 ```python
 SOURCE_DIR = "./faces_aligned_small_mirrored_co_aligned_cropped_cleaned"
@@ -144,19 +149,37 @@ Run: `python yearbook_preprocessing.py`
 Output structure:
 ```
 Yearbook_Decades/
-├── before_1950s/
-│   ├── train/
-│   │   ├── M/
-│   │   └── F/
-│   ├── val/
-│   │   ├── M/
-│   │   └── F/
-│   └── test/
-│       ├── M/
-│       └── F/
-├── 1950s_1960s/
-├── 1970s_1980s/
-└── 1990s_and_later/
+  before_1950s/
+    train/
+      1930s/  (contains years 1905-1939)
+      1940s/  (contains years 1940-1949)
+    val/
+      1930s/
+      1940s/
+    test/
+      1930s/
+      1940s/
+
+  1950s_1960s/
+    train/
+      1950s/  (contains years 1950-1959)
+      1960s/  (contains years 1960-1969)
+    val/
+    test/
+
+  1970s_1980s/
+    train/
+      1970s/  (contains years 1970-1979)
+      1980s/  (contains years 1980-1989)
+    val/
+    test/
+
+  1990s_and_later/
+    train/
+      1990s/  (contains years 1990-1999)
+      2000s/  (contains years 2000-2013)
+    val/
+    test/
 ```
 
 ## Split Details
@@ -186,15 +209,6 @@ All scripts create stratified 80/10/10 train/val/test splits:
 - Check file permissions on source directories
 - Verify image files have correct extensions (.jpg, .jpeg, .png, .gif, .bmp)
 - For CLEAR-100, note that only 30 classes are processed (by design)
-
-## Output Statistics
-
-Each script prints detailed statistics during execution:
-- Number of images found per class/period
-- Train/val/test split counts and percentages
-- Progress updates for large copy operations
-
-Check the console output to verify the splits look reasonable before using the data.
 
 ## Citation
 
