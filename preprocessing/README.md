@@ -212,16 +212,6 @@ All scripts create stratified 80/10/10 train/val/test splits:
 
 ## Citation
 
-If you use these preprocessing scripts or the organized datasets:
-
-```bibtex
-@inproceedings{grasp2026,
-  title={GRASP: Gradient-Aligned Sequential Parameter Transfer for Memory-Efficient Multi-Source Learning},
-  booktitle={International Conference on Pattern Recognition (ICPR)},
-  year={2026}
-}
-```
-
 Dataset citations:
 - **CLEAR**: Lin et al., "CLEAR: A Dataset for Continual LEArning on Real-Robot Sensory Data", NeurIPS 2021
 - **Yearbook**: Ginosar et al., "A Century of Portraits: A Visual Historical Record of American High School Yearbooks", ICCV Workshop 2015
