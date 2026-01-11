@@ -1,19 +1,16 @@
 #!/usr/bin/env python
 """
-Train model on all CLEAR-100 temporal bins (30 classes).
+train_all_subsets.py - Train model on all CLEAR-100 temporal bins
 
-Trains sequentially on 5 two-year bins (year_1-2 through year_9-10) and saves 
-best checkpoints for each.
+This script trains the multi-class classification model sequentially on all temporal bins
+of the CLEAR-100 dataset and saves the best checkpoints for each.
 
-Usage:
-    python train_all_subsets.py
-    python train_all_subsets.py --max_epochs 15 --batch_size 64
-    python train_all_subsets.py --devices 0
-    python train_all_subsets.py --years year_1-2 year_3-4
+CLEAR-100 merged bins (default):
+- year_1-2, year_3-4, year_5-6, year_7-8, year_9-10 (5 temporal bins)
+- Each bin has 30 classes: baseball, bus, camera, cosplay, 
+  dress, hockey, laptop, racing, soccer, sweater
 
-Output:
-    Checkpoints: model_checkpoints/{model}_{bin}-best-acc-epoch-XX.ckpt
-    Logs: logs/tensorboard/ and logs/csv/
+Individual years also available: year_1 through year_10
 """
 
 import subprocess
@@ -21,22 +18,25 @@ import sys
 import argparse
 from pathlib import Path
 import time
-import random
 
 
-# CLEAR-100 merged year bins
+# All CLEAR-100 merged year bins (default for continual learning)
 ALL_YEARS_MERGED = ['year_1-2', 'year_3-4', 'year_5-6', 'year_7-8', 'year_9-10']
 
 # Individual years (for compatibility)
-ALL_YEARS_INDIVIDUAL = [f'year_{i}' for i in range(1, 11)]
+ALL_YEARS_INDIVIDUAL = [f'year_{i}' for i in range(1, 11)]  # year_1 through year_10
 
 
 def run_training(year_name, args):
     """
     Run training for a single year.
     
+    Args:
+        year_name: Name of the year to train on (e.g., "year_1")
+        args: Command-line arguments
+    
     Returns:
-        bool: True if training succeeded
+        bool: True if training succeeded, False otherwise
     """
     print("=" * 80)
     print(f"Training year: {year_name}")
@@ -76,7 +76,7 @@ def run_training(year_name, args):
         cmd.extend(["--devices", args.devices])
     if args.precision:
         cmd.extend(["--precision", args.precision])
-    if args.seed is not None:
+    if args.seed != 42:
         cmd.extend(["--seed", str(args.seed)])
     if args.deterministic:
         cmd.append("--deterministic")
@@ -91,20 +91,20 @@ def run_training(year_name, args):
         seconds = int(duration % 60)
         
         print()
-        print(f"[SUCCESS] Training completed: {year_name}")
-        print(f"Training time: {hours:02d}:{minutes:02d}:{seconds:02d}")
+        print(f"Successfully completed training for {year_name}")
+        print(f"  Training time: {hours:02d}:{minutes:02d}:{seconds:02d}")
         print()
         return True
     except subprocess.CalledProcessError as e:
         duration = time.time() - start_time
         print()
-        print(f"[ERROR] Training failed: {year_name}: {e}")
-        print(f"Failed after {duration/60:.1f} minutes")
+        print(f"Error training {year_name}: {e}")
+        print(f"  Failed after {duration/60:.1f} minutes")
         print()
         return False
     except KeyboardInterrupt:
         print()
-        print("Training interrupted by user")
+        print("Training interrupted by user!")
         print()
         raise
 
@@ -112,7 +112,7 @@ def run_training(year_name, args):
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Train model on all CLEAR-100 temporal bins (30 classes)",
+        description="Train model on all CLEAR-100 temporal bins (default: merged 2-year bins)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     
@@ -121,7 +121,7 @@ def parse_args():
         "--years",
         nargs="+",
         default=ALL_YEARS_MERGED,
-        help="Years/bins to train on"
+        help="Years/bins to train on (default: merged bins year_1-2, year_3-4, etc.)"
     )
     
     # Option to use individual years
@@ -161,7 +161,7 @@ def parse_args():
     parser.add_argument(
         "--devices",
         type=str,
-        help="GPU device(s) to use. Examples: '1' (use 1 GPU), '0' (use GPU 0)"
+        help="GPU device(s) to use. Examples: '1' (use 1 GPU), '0' (use GPU 0), '0,1' (use GPUs 0 and 1)"
     )
     parser.add_argument("--precision", type=str, help="Training precision (32/16-mixed/bf16-mixed)")
     
@@ -169,8 +169,8 @@ def parse_args():
     parser.add_argument("--log_dir", type=str, default="./logs", help="Logging directory")
     parser.add_argument("--checkpoint_dir", type=str, default="./model_checkpoints", help="Checkpoint directory")
     
-    # Reproducibility - use random seed by default
-    parser.add_argument("--seed", type=int, default=None, help="Random seed (random if not specified)")
+    # Misc arguments
+    parser.add_argument("--seed", type=int, default=None, help="Random seed")
     parser.add_argument("--deterministic", action="store_true", help="Enable deterministic mode")
     
     return parser.parse_args()
@@ -180,32 +180,30 @@ def main():
     """Main entry point."""
     args = parse_args()
     
-    # Generate random seed if not provided
-    if args.seed is None:
-        args.seed = random.randint(0, 999999)
-        print(f"Using random seed: {args.seed}")
-    
     # Override years if using individual years
     if args.use_individual_years:
         args.years = ALL_YEARS_INDIVIDUAL
     
-    print("CLEAR-100: TRAIN ALL TEMPORAL BINS/YEARS (30 classes)")
-    print(f"Dataset: CLEAR-100")
+    # Print header
+    print("\n" + "=" * 80)
+    print("CLEAR-100: TRAIN ALL TEMPORAL BINS/YEARS")
+    print("=" * 80)
+    print(f"Dataset: CLEAR-100 (Continual Learning)")
     print(f"Data root: {args.data_root}")
     print(f"Model: {args.model_name}")
-    print(f"Seed: {args.seed}")
     if args.use_individual_years:
         print(f"Mode: Individual years (year_1 through year_10)")
     else:
-        print(f"Mode: Merged 2-year bins")
+        print(f"Mode: Merged 2-year bins (year_1-2, year_3-4, etc.)")
     print(f"Years/bins to train: {len(args.years)}")
     for year in args.years:
         print(f"  - {year}")
+    print("=" * 80 + "\n")
     
     # Verify data directory exists
     data_path = Path(args.data_root)
     if not data_path.exists():
-        print(f"[ERROR] Data directory not found: {args.data_root}")
+        print(f"Error: Data directory not found: {args.data_root}")
         print("Please run preprocessing first or specify correct --data_root")
         return 1
     
@@ -214,18 +212,22 @@ def main():
     total_start = time.time()
     
     for i, year in enumerate(args.years, 1):
+        print(f"\n{'='*80}")
         print(f"YEAR {i}/{len(args.years)}: {year.upper()}")
+        print(f"{'='*80}\n")
         
         success = run_training(year, args)
         results[year] = success
         
         if not success:
-            print(f"[WARNING] Year {year} failed but continuing...")
+            print(f"Year {year} failed but continuing with remaining years...")
     
     # Print summary
     total_elapsed = time.time() - total_start
     
+    print("\n" + "=" * 80)
     print("TRAINING SUMMARY")
+    print("=" * 80)
     print(f"Total time: {total_elapsed/3600:.2f} hours")
     print(f"\nResults:")
     
@@ -233,10 +235,11 @@ def main():
     failed = len(results) - succeeded
     
     for year, success in results.items():
-        status = "[SUCCESS]" if success else "[FAILED]"
-        print(f"{status} {year}")
+        status = "Done" if success else "Fail"
+        print(f"  {status} {year}")
     
     print(f"\nSummary: {succeeded}/{len(results)} succeeded")
+    print("=" * 80 + "\n")
     
     # Return exit code
     return 0 if failed == 0 else 1
@@ -246,5 +249,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
-        print("\n\nTraining interrupted by user")
+        print("\n\nTraining interrupted by user!")
         sys.exit(1)
